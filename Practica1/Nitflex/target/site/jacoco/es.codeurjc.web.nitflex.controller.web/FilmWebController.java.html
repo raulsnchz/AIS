@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FilmWebController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">nitflex-web-bbdd-rest</a> &gt; <a href="index.source.html" class="el_package">es.codeurjc.web.nitflex.controller.web</a> &gt; <span class="el_source">FilmWebController.java</span></div><h1>FilmWebController.java</h1><pre class="source lang-java linenums">package es.codeurjc.web.nitflex.controller.web;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
+
+import es.codeurjc.web.nitflex.dto.film.CreateFilmRequest;
+import es.codeurjc.web.nitflex.dto.film.FilmDTO;
+import es.codeurjc.web.nitflex.dto.film.FilmSimpleDTO;
+import es.codeurjc.web.nitflex.dto.review.CreateReviewRequest;
+import es.codeurjc.web.nitflex.model.Film;
+import es.codeurjc.web.nitflex.service.FavoriteFilmService;
+import es.codeurjc.web.nitflex.service.FilmService;
+import es.codeurjc.web.nitflex.service.ReviewService;
+import es.codeurjc.web.nitflex.utils.AgeRatingOptionsUtils;
+import es.codeurjc.web.nitflex.utils.AgeRatingOptionsUtils.AgeRating;
+import jakarta.validation.Valid;
+
+@Controller
+public class FilmWebController {
+
+	private final FilmService filmService;
+    private final FavoriteFilmService favoriteFilmService;
+    private final ReviewService reviewService;
+
+    public FilmWebController(FilmService filmService, 
+	FavoriteFilmService favoriteFilmService, 
+<span class="fc" id="L42">	ReviewService reviewService) {</span>
+<span class="fc" id="L43">        this.filmService = filmService;</span>
+<span class="fc" id="L44">		this.favoriteFilmService = favoriteFilmService;</span>
+<span class="fc" id="L45">        this.reviewService = reviewService;</span>
+<span class="fc" id="L46">    }</span>
+	
+
+
+<span class="fc" id="L50">	private String filmNotFound = &quot;Film not found&quot;;</span>
+<span class="fc" id="L51">	private String error = &quot;error&quot;;</span>
+<span class="fc" id="L52">	private String action = &quot;action&quot;;</span>
+<span class="fc" id="L53">	private String filmForm =  &quot;filmForm&quot;;</span>
+<span class="fc" id="L54">	private String redirectFilms = &quot;redirect:/films/&quot;;</span>
+	
+	@GetMapping(&quot;/&quot;)
+	public String showFilms(Model model) {
+
+<span class="nc" id="L59">		model.addAttribute(&quot;films&quot;, filmService.findAll());</span>
+		
+<span class="nc" id="L61">		return &quot;films&quot;;</span>
+	}
+	
+	@GetMapping(&quot;/films/{id}&quot;)
+	public String showFilm(Model model, @PathVariable long id) {
+		
+<span class="nc" id="L67">		Optional&lt;FilmDTO&gt; op = filmService.findOne(id);</span>
+<span class="nc bnc" id="L68" title="All 2 branches missed.">		if(op.isPresent()) {</span>
+<span class="nc" id="L69">			FilmDTO film = op.get();</span>
+<span class="nc" id="L70">			model.addAttribute(&quot;film&quot;, film);</span>
+<span class="nc" id="L71">			model.addAttribute(&quot;isInFavorites&quot;, favoriteFilmService.isFavorite(film));</span>
+<span class="nc" id="L72">			return &quot;film&quot;;</span>
+		}else {
+<span class="nc" id="L74">			throw new ResponseStatusException(HttpStatus.NOT_FOUND, filmNotFound);</span>
+		}
+		
+	}
+
+	@GetMapping(&quot;/films/{id}/delete&quot;)
+	public String removeFilm(Model model, @PathVariable long id) {
+		
+<span class="nc" id="L82">		Optional&lt;FilmDTO&gt; op = filmService.findOne(id);</span>
+<span class="nc bnc" id="L83" title="All 2 branches missed.">		if(op.isPresent()) {</span>
+<span class="nc" id="L84">			filmService.delete(id);</span>
+<span class="nc" id="L85">			FilmDTO removedFilm = op.get();</span>
+<span class="nc" id="L86">			model.addAttribute(error, false);</span>
+<span class="nc" id="L87">			model.addAttribute(&quot;message&quot;, &quot;Film '&quot;+removedFilm.title()+&quot;' deleted&quot;);</span>
+<span class="nc" id="L88">			return &quot;message&quot;;</span>
+		}else {
+<span class="nc" id="L90">			throw new ResponseStatusException(HttpStatus.NOT_FOUND, filmNotFound);</span>
+		}
+		
+	}
+	
+	@GetMapping(&quot;/films/new&quot;)
+	public String newFilm(Model model) {
+<span class="nc" id="L97">		model.addAttribute(action, &quot;/films/new&quot;);</span>
+<span class="nc" id="L98">		model.addAttribute(&quot;film&quot;, new Film());</span>
+<span class="nc" id="L99">		model.addAttribute(&quot;ageRatings&quot;, AgeRating.values());</span>
+<span class="nc" id="L100">		return filmForm;</span>
+	}
+	
+	@PostMapping(&quot;/films/new&quot;)
+	public String newFilmProcess(CreateFilmRequest film, MultipartFile imageField, Model model) {
+
+<span class="nc" id="L106">		FilmDTO newFilm = null;</span>
+
+		try{
+<span class="nc" id="L109">			newFilm = filmService.save(film, imageField);</span>
+<span class="nc" id="L110">		}catch(IllegalArgumentException e){</span>
+<span class="nc" id="L111">			model.addAttribute(error, true);</span>
+<span class="nc" id="L112">			model.addAttribute(&quot;errors&quot;, List.of(e.getMessage()));</span>
+<span class="nc" id="L113">			model.addAttribute(action, &quot;/films/new&quot;);</span>
+<span class="nc" id="L114">			model.addAttribute(&quot;film&quot;, film);</span>
+<span class="nc" id="L115">			return filmForm;</span>
+<span class="nc" id="L116">		}</span>
+		
+<span class="nc" id="L118">		return redirectFilms + newFilm.id();</span>
+	}
+	
+	@GetMapping(&quot;/films/{id}/edit&quot;)
+	public String editFilm(Model model, @PathVariable long id) {
+
+<span class="nc" id="L124">		Optional&lt;FilmDTO&gt; op = filmService.findOne(id);</span>
+<span class="nc bnc" id="L125" title="All 2 branches missed.">		if(op.isPresent()) {</span>
+<span class="nc" id="L126">			FilmDTO film = op.get();</span>
+<span class="nc" id="L127">			model.addAttribute(action, &quot;/films/&quot;+id+&quot;/edit&quot;);</span>
+<span class="nc" id="L128">			model.addAttribute(&quot;film&quot;, film);</span>
+<span class="nc" id="L129">			model.addAttribute(&quot;ageRatings&quot;, AgeRatingOptionsUtils.getAgeRatingOptions(film.ageRating()));</span>
+<span class="nc" id="L130">			return filmForm;</span>
+		}else {
+<span class="nc" id="L132">			throw new ResponseStatusException(HttpStatus.NOT_FOUND, filmNotFound);</span>
+		}
+		
+	}
+	
+	@PostMapping(&quot;/films/{id}/edit&quot;)
+	public String editFilmProcess(Model model, @PathVariable long id, FilmSimpleDTO film, MultipartFile imageField) {
+
+<span class="nc" id="L140">		FilmDTO updatedFilm = null;</span>
+
+		try{
+<span class="nc" id="L143">			updatedFilm = filmService.update(id, film, imageField);</span>
+<span class="nc" id="L144">		}catch(ResponseStatusException e){</span>
+<span class="nc" id="L145">			model.addAttribute(error, true);</span>
+<span class="nc" id="L146">			model.addAttribute(&quot;errors&quot;, List.of(e.getReason()));</span>
+<span class="nc" id="L147">			model.addAttribute(action, &quot;/films/&quot;+id+&quot;/edit&quot;);</span>
+<span class="nc" id="L148">			model.addAttribute(&quot;film&quot;, film);</span>
+<span class="nc" id="L149">			return filmForm;</span>
+<span class="nc" id="L150">		}</span>
+
+<span class="nc" id="L152">		model.addAttribute(&quot;film&quot;, updatedFilm);</span>
+		
+<span class="nc" id="L154">		return redirectFilms + film.id();</span>
+	}
+
+	@GetMapping(&quot;/films/{id}/poster&quot;)
+	public ResponseEntity&lt;Object&gt; getMethodName(@PathVariable long id) throws IOException {
+		Resource poster;
+		try {
+<span class="nc" id="L161">			poster = new InputStreamResource(filmService.getPosterFile(id));</span>
+<span class="nc" id="L162">		} catch (Exception e) {</span>
+<span class="nc" id="L163">			ClassPathResource resource = new ClassPathResource(&quot;static/images/no-image.png&quot;);</span>
+<span class="nc" id="L164">			byte[] imageBytes = resource.getInputStream().readAllBytes();</span>
+<span class="nc" id="L165">			return ResponseEntity.status(HttpStatus.NOT_FOUND)</span>
+<span class="nc" id="L166">				.header(HttpHeaders.CONTENT_TYPE, &quot;image/jpeg&quot;).body(imageBytes);</span>
+<span class="nc" id="L167">		}</span>
+<span class="nc" id="L168">		return ResponseEntity.ok().header(HttpHeaders.CONTENT_TYPE, &quot;image/jpeg&quot;).body(poster);</span>
+	}
+
+	@PostMapping(&quot;/films/{filmId}/reviews&quot;)
+	public String addReview(@PathVariable long filmId, @Valid CreateReviewRequest review) {
+<span class="nc" id="L173">		FilmDTO film = reviewService.addReview(filmId, review);</span>
+<span class="nc" id="L174">		return redirectFilms + film.id();</span>
+	}
+
+	@PostMapping(&quot;/films/{filmId}/reviews/{reviewId}/remove&quot;)
+	public String removeReview(@PathVariable long filmId, @PathVariable long reviewId) {
+<span class="nc" id="L179">		FilmDTO film = reviewService.deleteReview(filmId, reviewId);</span>
+<span class="nc" id="L180">		return redirectFilms + film.id();</span>
+	}
+
+	@PostMapping(&quot;/films/{filmId}/addFavorite&quot;)
+	public String addFavorite(@PathVariable long filmId) {
+<span class="nc" id="L185">		favoriteFilmService.addToFavorites(filmId);</span>
+<span class="nc" id="L186">		return redirectFilms + filmId;</span>
+	}
+
+	@PostMapping(&quot;/films/{filmId}/removeFavorite&quot;)
+	public String removeFavorite(@PathVariable long filmId) {
+<span class="nc" id="L191">		favoriteFilmService.removeFromFavorites(filmId);</span>
+<span class="nc" id="L192">		return redirectFilms + filmId;</span>
+	}
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>
